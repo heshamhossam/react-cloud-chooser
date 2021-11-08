@@ -38,4 +38,4 @@ function DropboxExample(props) {
 
 ## License
 
-MIT © [Hesham &lt;heshamhossam@gmail.com&gt;](https://github.com/Hesham &lt;heshamhossam@gmail.com&gt;)
+MIT © [Hesham Hossam <heshamhossam57@gmail.com>](https://github.com/heshamhossam)
