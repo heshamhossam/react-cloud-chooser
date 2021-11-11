@@ -17,11 +17,14 @@ import React from 'react'
 
 import { canOpenDropbox } from 'react-cloud-chooser'
 
-const DtopboxBtn = (props) => (
-  <button onClick={props.openDropbox}>Dropbox</button>
+const DtopboxBtn = ({ openDropbox, isDropboxLoading }) => (
+  <button onClick={openDropbox}>
+    Dropbox
+    {isDropboxLoading && <span>...</span>}
+  </button>
 )
 
-const connectOpenDropbox = canOpenDropbox({ appkey: '__app_key__' })
+const connectOpenDropbox = canOpenDropbox({ appKey: '__app_key__' })
 const DropboxOpenBtn = connectOpenDropbox(DtopboxBtn)
 
 function DropboxExample(props) {

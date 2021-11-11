@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react'
-import { pipe, loadSDK, removeSpaces, split } from '../utils'
+import React, { useCallback, useState } from 'react'
+import { pipe, loadSDK, removeSpaces, split, andThen } from '../utils'
 
 const extensionsToArray = pipe(removeSpaces, split(','))
 
@@ -17,24 +17,48 @@ const prepareDropboxProps = (props) => {
   }
 }
 
-const openDropbox = pipe(prepareDropboxProps, (options) =>
-  window.Dropbox?.choose(options)
-)
-
-const memoCallback = (fn) => useCallback(fn, [])
-
-export const canOpenDropbox = ({ appkey = '' } = {}) => {
-  loadSDK(() => !!window.Dropbox)({
+const loadDropboxSdk = (appKey) =>
+  loadSDK(() => window.Dropbox)({
     url: 'https://www.dropbox.com/static/api/2/dropins.js',
     attrs: {
       id: 'dropboxjs',
-      'data-app-key': appkey
+      'data-app-key': appKey
     }
   })
+
+const Dropbox = (appKey) => ({
+  flatMap: (fn) => loadDropboxSdk(appKey).then(fn)
+})
+
+export const openDropbox = ({ appKey, ...dropBoxOptions } = {}) =>
+  new Promise((resolve) =>
+    Dropbox(appKey).flatMap((dropbox) => {
+      dropbox.choose(prepareDropboxProps(dropBoxOptions))
+      resolve()
+    })
+  )
+
+export const canOpenDropbox = ({ appKey = '' } = {}) => {
+  const openConfiguredDropbox = (props = {}) =>
+    openDropbox({ appKey, ...props })
   return (Component) => {
     return (props) => {
-      const _openDropbox = memoCallback(() => openDropbox(props))
-      return <Component {...props} openDropbox={_openDropbox} />
+      const [isDropboxLoading, setIsDropboxLoading] = useState()
+      const _openDropbox = useCallback(
+        pipe(
+          () => setIsDropboxLoading(true),
+          () => openConfiguredDropbox(props),
+          andThen(() => setIsDropboxLoading(false))
+        ),
+        []
+      )
+      return (
+        <Component
+          {...props}
+          openDropbox={_openDropbox}
+          isDropboxLoading={isDropboxLoading}
+        />
+      )
     }
   }
 }
