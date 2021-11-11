@@ -15,16 +15,18 @@ npm install --save react-cloud-chooser
 ```jsx
 import React from 'react'
 
-import { canDropboxChoose } from 'react-cloud-chooser'
-const connectDropboxChooser = canDropboxChoose({ appkey: '__app_key__' })
+import { canOpenDropbox } from 'react-cloud-chooser'
 
-const DropboxBtn = connectDropboxChooser((props) => (
-  <button onClick={props.dropboxChoose}>Dropbox</button>
-))
+const DtopboxBtn = (props) => (
+  <button onClick={props.openDropbox}>Dropbox</button>
+)
+
+const connectOpenDropbox = canOpenDropbox({ appkey: '__app_key__' })
+const DropboxOpenBtn = connectOpenDropbox(DtopboxBtn)
 
 function DropboxExample(props) {
   return (
-    <DropboxBtn
+    <DropboxOpenBtn
       multiselect={false}
       linkType='direct' // either direct or preview
       success={(files) => console.log(files)}

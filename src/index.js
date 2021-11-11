@@ -1,1 +1,1 @@
-export { canDropboxChoose } from './dropbox-choose/can-dropbox-choose'
+export { canOpenDropbox } from './dropbox/can-open-dropbox'
