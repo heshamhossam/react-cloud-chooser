@@ -1,6 +1,6 @@
 {
   "name": "react-cloud-chooser",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "react dropbox, google drive, one drive file browse chooser",
   "author": "Hesham Hossam <heshamhossam57@gmail.com>",
   "license": "MIT",

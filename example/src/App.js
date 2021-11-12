@@ -8,13 +8,12 @@ const DtopboxBtn = ({ openDropbox, isDropboxLoading }) => (
     {isDropboxLoading && <span>...</span>}
   </button>
 )
-
-const connectOpenDropbox = canOpenDropbox({ appKey: '__app_key__' })
-const DropboxOpenBtn = connectOpenDropbox(DtopboxBtn)
+const DropboxOpenBtn = canOpenDropbox(DtopboxBtn)
 
 const App = () => {
   return (
     <DropboxOpenBtn
+      appKey="__app_key__"
       multiselect={false}
       linkType='direct' // either direct or preview
       success={(files) => console.log(files)}
