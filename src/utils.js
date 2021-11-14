@@ -51,4 +51,8 @@ export const removeSpaces = (str) => str.replace(/\s/g, '')
 export const split = (splitter) => (str) => str.split(splitter)
 export const andMethod = (method) => (fn) => (monad) => monad[method](fn)
 export const andThen = andMethod('then')
-export const andFlatMap = andMethod('flatMap')
+export const andFinally = andMethod('finally')
+export const andCatch = andMethod('catch')
+
+export const ifElse = (validator, onTrue, onFalse) =>
+  validator() ? onTrue() : onFalse && onFalse()

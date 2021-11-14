@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { pipe, loadSDK, removeSpaces, split, andThen } from '../utils'
+import { pipe, loadSDK, removeSpaces, split } from '../utils'
 
 const extensionsToArray = pipe(removeSpaces, split(','))
 
@@ -15,18 +15,15 @@ const loadDropboxSdk = (appKey) =>
     }
   })
 
-const Dropbox = (appKey) => ({
-  flatMap: (fn) => loadDropboxSdk(appKey).then(fn)
-})
-
 export const openDropbox = ({ appKey, ...dropBoxOptions } = {}) =>
-  new Promise((resolve) =>
-    Dropbox(appKey).flatMap((dropbox) => {
+  new Promise((resolve, reject) =>
+    loadDropboxSdk(appKey).then((dropbox) => {
       dropbox.choose({
         ...dropBoxOptions,
+        success: resolve,
+        cancel: reject,
         extensions: buildExtensions(dropBoxOptions.extensions)
       })
-      resolve()
     })
   )
 
@@ -41,13 +38,15 @@ export const canOpenDropbox = (Component) => {
       () =>
         openDropbox({
           appKey,
-          success,
-          cancel,
           linkType,
           multiselect,
           extensions
         }),
-      andThen(() => setIsDropboxLoading(false))
+      (openPromise) =>
+        openPromise
+          .then(success)
+          .catch(cancel)
+          .finally(() => setIsDropboxLoading(false))
     )
     return (
       <Component
