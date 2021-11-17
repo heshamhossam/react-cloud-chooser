@@ -1,4 +1,4 @@
-import { pipe, ifElse, createInsertScriptTag, andThen } from '../utils'
+import { pipe, andThen } from '../utils'
 
 export const gapiCallbackToPromise = (fn) =>
   new Promise((resolve, reject) =>
@@ -8,7 +8,7 @@ export const gapiCallbackToPromise = (fn) =>
 export const createLoadGoogleDependencies =
   ({
     getGoogleApi = () => window?.gapi,
-    getPickerApi = () => window?.google?.picker
+    getPickerApi = () => window?.google
   } = {}) =>
   (libs = []) => {
     const isClientLib = (lib) => ['drive'].includes(lib)
@@ -46,7 +46,7 @@ export const createLoadGoogleDependencies =
       ),
       andThen(() => ({
         gapi: getGoogleApi(),
-        picker: getPickerApi()
+        google: getPickerApi()
       }))
     )()
   }

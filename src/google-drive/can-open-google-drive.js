@@ -6,12 +6,13 @@ import {
   andThen,
   withInsertScript,
   createInsertScriptTag,
-  withInsertScript
+  createInsertApiScript
 } from '../utils'
 import { gapiCallbackToPromise, createLoadGoogleDependencies } from './utils'
 
 const DEFAULT_SCOPE = ['https://www.googleapis.com/auth/drive.readonly']
 
+// insert gapi script if not yet loaded in window
 const insertGoogleApiScript = () => {
   const insertScriptTag = createInsertScriptTag()
   const insertGoogleApiScriptTag = insertScriptTag({
@@ -24,6 +25,7 @@ const insertGoogleApiScript = () => {
   return insertApiScript()
 }
 
+// function that triggers oauth login to get access token 
 export const createAuthorize =
   ({
     insertScript = insertGoogleApiScript,
@@ -47,6 +49,7 @@ export const createAuthorize =
       )
     )()
 
+// function that open google drive picker
 export const createOpenPicker =
   ({
     insertScript = insertGoogleApiScript,
@@ -56,72 +59,48 @@ export const createOpenPicker =
     accessToken,
     appId,
     developerKey,
-    viewId = 'DOCS',
     mimeTypes,
-    hasFolders = false,
-    canSelectFolders = false,
-    locale = 'en',
     multiselect,
-    supportDrives
-  }) => {
-    const viewBuilder =
-      ({ mimeTypes, hasFolders, canSelectFolders }) =>
-      (view) => {
-        ifElse(
-          () => !!mimeTypes,
-          () => view.setMimeTypes(mimeTypes)
-        )
-        ifElse(
-          () => hasFolders || canSelectFolders,
-          () => view.setSelectFolderEnabled(true)
-        )
-        return view
-      }
-
-    return pipe(
+    mapViews = (google) => [
+      new google.picker.DocsView(google.picker.ViewId.DOCS),
+      new google.picker.DocsUploadView()
+    ],
+    mapPickerBuilder = (pickerBuilder) => pickerBuilder
+  }) =>
+    pipe(
       insertScript,
       andThen(() => loadDependencies(['picker'])),
       andThen(
-        ({ picker }) =>
+        ({ google }) =>
           new Promise((resolve) => {
-            const buildView = viewBuilder({
-              mimeTypes,
-              hasFolders,
-              canSelectFolders
-            })
-
-            const defaultView = buildView(
-              new picker.DocsView(picker.ViewId[viewId])
-            )
-            const uploadView = buildView(new picker.DocsUploadView())
-
-            const pickerBuilder = new picker.PickerBuilder()
+            const pickerBuilder = new google.picker.PickerBuilder()
               .setAppId(appId)
               .setOAuthToken(accessToken)
               .setDeveloperKey(developerKey)
               .setCallback(
-                (r) => r?.action === picker.Action.PICKED && resolve(r)
+                (r) => r?.action === google.picker.Action.PICKED && resolve(r)
               )
-              .setLocale(locale)
-
-            pickerBuilder.addView(defaultView)
-            pickerBuilder.addView(uploadView)
-
+            // config mime types then add views to builder
+            mapViews(google)
+              .map((view) => {
+                ifElse(
+                  () => !!mimeTypes,
+                  () => view.setMimeTypes(mimeTypes)
+                )
+                return view
+              })
+              .forEach((view) => pickerBuilder.addView(view))
+            // config multi select
             ifElse(
               () => !!multiselect,
               () =>
-                pickerBuilder.enableFeature(picker.Feature.MULTISELECT_ENABLED)
+                pickerBuilder.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
             )
-
-            ifElse(
-              () => !!supportDrives,
-              () => pickerBuilder.enableFeature(picker.Feature.SUPPORT_DRIVES)
-            )
-            pickerBuilder.build().setVisible(true)
+            // let user config picker builder then show it
+            mapPickerBuilder(pickerBuilder).build().setVisible(true)
           })
       )
     )()
-  }
 
 export const canOpenGoogleDrive = (Component) => {
   return (props) => {
@@ -129,38 +108,39 @@ export const canOpenGoogleDrive = (Component) => {
       clientId,
       scope = DEFAULT_SCOPE,
       onAuthorizeSuccess,
+      success,
       cancel,
       token,
       appId,
       developerKey,
-      viewId = 'DOCS',
       mimeTypes,
-      hasFolders = false,
-      canSelectFolders = false,
-      locale = 'en',
       multiselect,
-      supportDrives,
-      success
+      mapViews,
+      mapPickerBuilder
     } = props
-
+    // cache script loader promise 
     const googleScriptLoader = useMemo(
       () => withInsertScript({ insertScript: insertGoogleApiScript })({}),
       []
     )
+    // login and get access token
     const getAccessToken = useCallback(
       createAuthorize({
         insertScript: googleScriptLoader.insertScript
       }),
       [googleScriptLoader]
     )
+    // open google drive picker
     const openPicker = useCallback(
       createOpenPicker({
         insertScript: googleScriptLoader.insertScript
       }),
       [googleScriptLoader]
     )
+    // loading flag
     const [isGoogleDriveLoading, setIsGoogleDriveLoading] = useState()
 
+    // get token then open drive picker based on props
     const _openGoogleDrive = pipe(
       () => setIsGoogleDriveLoading(true),
       () =>
@@ -173,13 +153,10 @@ export const canOpenGoogleDrive = (Component) => {
             accessToken: token.access_token,
             appId,
             developerKey,
-            viewId,
             mimeTypes,
-            hasFolders,
-            canSelectFolders,
-            locale,
             multiselect,
-            supportDrives
+            mapViews,
+            mapPickerBuilder
           })
         ),
       (pickerPromise) =>

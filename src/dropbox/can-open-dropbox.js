@@ -10,10 +10,11 @@ import {
 } from '../utils'
 
 const extensionsToArray = pipe(removeSpaces, split(','))
-
+// ensure extensions is an array
 const buildExtensions = (extensions) =>
   typeof extensions === 'string' ? extensionsToArray(extensions) : extensions
 
+// insert dropbox script if dropbox not yet loaded in window
 const insertDropboxScript = (appKey) => {
   const insertScriptTag = createInsertScriptTag()
   const insertDropboxScriptTag = insertScriptTag({
@@ -29,7 +30,7 @@ const insertDropboxScript = (appKey) => {
   })
   return insertApiScript()
 }
-
+// create a function to open dropbox browser
 export const createOpenDropbox =
   ({ insertScript = insertDropboxScript } = {}) =>
   ({ appKey, linkType, multiselect, extensions } = {}) =>
@@ -53,6 +54,7 @@ export const canOpenDropbox = (Component) => {
   return (props) => {
     const { appKey, success, cancel, linkType, multiselect, extensions } = props
 
+    // dropbox loader which caches the promise
     const dropboxScriptInsert = useMemo(
       () =>
         withInsertScript({
@@ -60,6 +62,7 @@ export const canOpenDropbox = (Component) => {
         })({}),
       []
     )
+    // open dropbox browser
     const openDropbox = useCallback(
       createOpenDropbox({
         insertDropboxScript: dropboxScriptInsert.insertScript
@@ -67,7 +70,8 @@ export const canOpenDropbox = (Component) => {
       []
     )
     const [isDropboxLoading, setIsDropboxLoading] = useState()
-
+    
+    // triggers loading, open the browser, and fire success/cancel callbacks
     const _openDropbox = pipe(
       () => setIsDropboxLoading(true),
       () =>
