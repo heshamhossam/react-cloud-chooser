@@ -62,20 +62,20 @@ export const createInsertApiScript =
       () => Promise.resolve(getApi())
     )
 
-export const withInsertScript =
-  ({ insertScript } = {}) =>
+export const withCachedPromiserRunner =
+  ({ run } = {}) =>
   (o = {}) => {
-    let _loadScriptPromise = null
+    let _cachedPromise = null
     return {
       ...o,
-      insertScript: function () {
+      run: function () {
         return pipe(
           () =>
             ifElse(
-              () => !_loadScriptPromise,
-              () => (_loadScriptPromise = insertScript.apply(this, arguments))
+              () => !_cachedPromise,
+              () => (_cachedPromise = run.apply(this, arguments))
             ),
-          () => _loadScriptPromise
+          () => _cachedPromise
         )()
       }
     }

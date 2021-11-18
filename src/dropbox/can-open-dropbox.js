@@ -5,7 +5,7 @@ import {
   removeSpaces,
   split,
   andThen,
-  withInsertScript,
+  withCachedPromiserRunner,
   createInsertApiScript
 } from '../utils'
 
@@ -32,7 +32,9 @@ const insertDropboxScript = (appKey) => {
 }
 // create a function to open dropbox browser
 export const createOpenDropbox =
-  ({ insertScript = insertDropboxScript } = {}) =>
+  ({
+    insertScript = withCachedPromiserRunner({ run: insertDropboxScript })().run
+  } = {}) =>
   ({ appKey, linkType, multiselect, extensions } = {}) =>
     pipe(
       () => insertScript(appKey),
@@ -54,23 +56,11 @@ export const canOpenDropbox = (Component) => {
   return (props) => {
     const { appKey, success, cancel, linkType, multiselect, extensions } = props
 
-    // dropbox loader which caches the promise
-    const dropboxScriptInsert = useMemo(
-      () =>
-        withInsertScript({
-          insertScript: insertDropboxScript
-        })({}),
-      []
-    )
     // open dropbox browser
-    const openDropbox = useCallback(
-      createOpenDropbox({
-        insertDropboxScript: dropboxScriptInsert.insertScript
-      }),
-      []
-    )
-    const [isDropboxLoading, setIsDropboxLoading] = useState()
+    const openDropbox = useCallback(createOpenDropbox(), [])
     
+    const [isDropboxLoading, setIsDropboxLoading] = useState()
+
     // triggers loading, open the browser, and fire success/cancel callbacks
     const _openDropbox = pipe(
       () => setIsDropboxLoading(true),

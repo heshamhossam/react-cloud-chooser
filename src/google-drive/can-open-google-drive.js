@@ -4,7 +4,7 @@ import {
   ifElse,
   tap,
   andThen,
-  withInsertScript,
+  withCachedPromiserRunner,
   createInsertScriptTag,
   createInsertApiScript
 } from '../utils'
@@ -25,10 +25,11 @@ const insertGoogleApiScript = () => {
   return insertApiScript()
 }
 
-// function that triggers oauth login to get access token 
+// function that triggers oauth login to get access token
 export const createAuthorize =
   ({
-    insertScript = insertGoogleApiScript,
+    insertScript = withCachedPromiserRunner({ run: insertGoogleApiScript })()
+      .run,
     loadDependencies = createLoadGoogleDependencies()
   } = {}) =>
   ({ clientId, scope = DEFAULT_SCOPE, immediate = false }) =>
@@ -52,7 +53,8 @@ export const createAuthorize =
 // function that open google drive picker
 export const createOpenPicker =
   ({
-    insertScript = insertGoogleApiScript,
+    insertScript = withCachedPromiserRunner({ run: insertGoogleApiScript })()
+      .run,
     loadDependencies = createLoadGoogleDependencies()
   } = {}) =>
   ({
@@ -94,7 +96,9 @@ export const createOpenPicker =
             ifElse(
               () => !!multiselect,
               () =>
-                pickerBuilder.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+                pickerBuilder.enableFeature(
+                  google.picker.Feature.MULTISELECT_ENABLED
+                )
             )
             // let user config picker builder then show it
             mapPickerBuilder(pickerBuilder).build().setVisible(true)
@@ -118,24 +122,24 @@ export const canOpenGoogleDrive = (Component) => {
       mapViews,
       mapPickerBuilder
     } = props
-    // cache script loader promise 
-    const googleScriptLoader = useMemo(
-      () => withInsertScript({ insertScript: insertGoogleApiScript })({}),
+    // cache google script insert to ensure running once
+    const cachedGoogleApiScriptInsert = useMemo(
+      () => withCachedPromiserRunner({ run: insertGoogleApiScript })({}),
       []
     )
     // login and get access token
     const getAccessToken = useCallback(
       createAuthorize({
-        insertScript: googleScriptLoader.insertScript
+        insertScript: cachedGoogleApiScriptInsert.run
       }),
-      [googleScriptLoader]
+      [cachedGoogleApiScriptInsert]
     )
     // open google drive picker
     const openPicker = useCallback(
       createOpenPicker({
-        insertScript: googleScriptLoader.insertScript
+        insertScript: cachedGoogleApiScriptInsert.run
       }),
-      [googleScriptLoader]
+      [cachedGoogleApiScriptInsert]
     )
     // loading flag
     const [isGoogleDriveLoading, setIsGoogleDriveLoading] = useState()
