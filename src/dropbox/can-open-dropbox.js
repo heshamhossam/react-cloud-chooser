@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   pipe,
   createInsertScriptTag,
@@ -6,7 +6,7 @@ import {
   split,
   andThen,
   withCachedPromiserRunner,
-  createInsertApiScript
+  ifElse
 } from '../utils'
 
 const extensionsToArray = pipe(removeSpaces, split(','))
@@ -15,25 +15,31 @@ const buildExtensions = (extensions) =>
   typeof extensions === 'string' ? extensionsToArray(extensions) : extensions
 
 // insert dropbox script if dropbox not yet loaded in window
-const insertDropboxScript = (appKey) => {
-  const insertScriptTag = createInsertScriptTag()
-  const insertDropboxScriptTag = insertScriptTag({
-    url: 'https://www.dropbox.com/static/api/2/dropins.js',
-    attrs: {
-      id: 'dropboxjs',
-      'data-app-key': appKey
-    }
-  })
-  const insertApiScript = createInsertApiScript({
-    getApi: () => window.Dropbox,
-    insertApiScriptTag: insertDropboxScriptTag
-  })
-  return insertApiScript()
-}
+const createInsertDropboxScript =
+  ({
+    getApi = () => window.Dropbox,
+    insertScriptTag = createInsertScriptTag()
+  } = {}) =>
+  (appKey) =>
+    ifElse(
+      () => !getApi(),
+      () =>
+        insertScriptTag({
+          url: 'https://www.dropbox.com/static/api/2/dropins.js',
+          attrs: {
+            id: 'dropboxjs',
+            'data-app-key': appKey
+          }
+        }).then(getApi),
+      () => Promise.resolve(getApi())
+    )
+
 // create a function to open dropbox browser
 export const createOpenDropbox =
   ({
-    insertScript = withCachedPromiserRunner({ run: insertDropboxScript })().run
+    insertScript = withCachedPromiserRunner({
+      run: createInsertDropboxScript()
+    })().run
   } = {}) =>
   ({ appKey, linkType, multiselect, extensions } = {}) =>
     pipe(
@@ -58,7 +64,7 @@ export const canOpenDropbox = (Component) => {
 
     // open dropbox browser
     const openDropbox = useCallback(createOpenDropbox(), [])
-    
+
     const [isDropboxLoading, setIsDropboxLoading] = useState()
 
     // triggers loading, open the browser, and fire success/cancel callbacks

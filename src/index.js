@@ -11,3 +11,8 @@ import {
 export { canOpenGoogleDrive } from './google-drive/can-open-google-drive'
 export const getAccessToken = createAuthorize()
 export const openPicker = createOpenPicker()
+
+// OneDrive
+import { createOpenOneDrive } from './one-drive/can-open-one-drive'
+export const openOneDrive = createOpenOneDrive()
+export { canOpenOneDrive } from './one-drive/can-open-one-drive'

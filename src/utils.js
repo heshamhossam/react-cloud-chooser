@@ -53,15 +53,6 @@ export const andCatch = andMethod('catch')
 export const ifElse = (validator, onTrue, onFalse) =>
   validator() ? onTrue() : onFalse && onFalse()
 
-export const createInsertApiScript =
-  ({ insertApiScriptTag, getApi = () => undefined } = {}) =>
-  () =>
-    ifElse(
-      () => !getApi(),
-      () => insertApiScriptTag.then(getApi),
-      () => Promise.resolve(getApi())
-    )
-
 export const withCachedPromiserRunner =
   ({ run } = {}) =>
   (o = {}) => {

@@ -5,31 +5,34 @@ import {
   tap,
   andThen,
   withCachedPromiserRunner,
-  createInsertScriptTag,
-  createInsertApiScript
+  createInsertScriptTag
 } from '../utils'
 import { gapiCallbackToPromise, createLoadGoogleDependencies } from './utils'
 
 const DEFAULT_SCOPE = ['https://www.googleapis.com/auth/drive.readonly']
 
 // insert gapi script if not yet loaded in window
-const insertGoogleApiScript = () => {
-  const insertScriptTag = createInsertScriptTag()
-  const insertGoogleApiScriptTag = insertScriptTag({
-    url: 'https://apis.google.com/js/api.js'
-  })
-  const insertApiScript = createInsertApiScript({
-    getApi: () => window.gapi,
-    insertApiScriptTag: insertGoogleApiScriptTag
-  })
-  return insertApiScript()
-}
+const createInsertGoogleApiScript =
+  ({
+    getApi = () => window.gapi,
+    insertScriptTag = createInsertScriptTag()
+  } = {}) =>
+  () =>
+    ifElse(
+      () => !getApi(),
+      () =>
+        insertScriptTag({
+          url: 'https://apis.google.com/js/api.js'
+        }).then(getApi),
+      () => Promise.resolve(getApi())
+    )
 
 // function that triggers oauth login to get access token
 export const createAuthorize =
   ({
-    insertScript = withCachedPromiserRunner({ run: insertGoogleApiScript })()
-      .run,
+    insertScript = withCachedPromiserRunner({
+      run: createInsertGoogleApiScript()
+    })().run,
     loadDependencies = createLoadGoogleDependencies()
   } = {}) =>
   ({ clientId, scope = DEFAULT_SCOPE, immediate = false }) =>
@@ -53,8 +56,9 @@ export const createAuthorize =
 // function that open google drive picker
 export const createOpenPicker =
   ({
-    insertScript = withCachedPromiserRunner({ run: insertGoogleApiScript })()
-      .run,
+    insertScript = withCachedPromiserRunner({
+      run: createInsertGoogleApiScript()
+    })().run,
     loadDependencies = createLoadGoogleDependencies()
   } = {}) =>
   ({
@@ -68,45 +72,51 @@ export const createOpenPicker =
       new google.picker.DocsUploadView()
     ],
     mapPickerBuilder = (pickerBuilder) => pickerBuilder
-  }) =>
-    pipe(
+  }) => {
+    const openPicker = ({ google }) =>
+      new Promise((resolve) => {
+        const pickerBuilder = new google.picker.PickerBuilder()
+          .setAppId(appId)
+          .setOAuthToken(accessToken)
+          .setDeveloperKey(developerKey)
+          .setCallback(
+            (r) => r?.action === google.picker.Action.PICKED && resolve(r)
+          )
+        // config mime types then add views to builder
+        mapViews(google)
+          .map((view) => {
+            ifElse(
+              () => !!mimeTypes,
+              () => view.setMimeTypes(mimeTypes)
+            )
+            return view
+          })
+          .forEach((view) => pickerBuilder.addView(view))
+        // config multi select
+        ifElse(
+          () => !!multiselect,
+          () =>
+            pickerBuilder.enableFeature(
+              google.picker.Feature.MULTISELECT_ENABLED
+            )
+        )
+        // let user config picker builder then show it
+        mapPickerBuilder(pickerBuilder).build().setVisible(true)
+      })
+
+    return pipe(
       insertScript,
       andThen(() => loadDependencies(['picker'])),
-      andThen(
-        ({ google }) =>
-          new Promise((resolve) => {
-            const pickerBuilder = new google.picker.PickerBuilder()
-              .setAppId(appId)
-              .setOAuthToken(accessToken)
-              .setDeveloperKey(developerKey)
-              .setCallback(
-                (r) => r?.action === google.picker.Action.PICKED && resolve(r)
-              )
-            // config mime types then add views to builder
-            mapViews(google)
-              .map((view) => {
-                ifElse(
-                  () => !!mimeTypes,
-                  () => view.setMimeTypes(mimeTypes)
-                )
-                return view
-              })
-              .forEach((view) => pickerBuilder.addView(view))
-            // config multi select
-            ifElse(
-              () => !!multiselect,
-              () =>
-                pickerBuilder.enableFeature(
-                  google.picker.Feature.MULTISELECT_ENABLED
-                )
-            )
-            // let user config picker builder then show it
-            mapPickerBuilder(pickerBuilder).build().setVisible(true)
-          })
-      )
+      andThen(openPicker)
     )()
+  }
 
 export const canOpenGoogleDrive = (Component) => {
+  // cache google script insert to ensure running once
+  const cachedGoogleApiScriptInsert = withCachedPromiserRunner({
+    run: createInsertGoogleApiScript()
+  })({})
+
   return (props) => {
     const {
       clientId,
@@ -122,11 +132,6 @@ export const canOpenGoogleDrive = (Component) => {
       mapViews,
       mapPickerBuilder
     } = props
-    // cache google script insert to ensure running once
-    const cachedGoogleApiScriptInsert = useMemo(
-      () => withCachedPromiserRunner({ run: insertGoogleApiScript })({}),
-      []
-    )
     // login and get access token
     const getAccessToken = useCallback(
       createAuthorize({
